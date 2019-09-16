@@ -49,6 +49,10 @@ CORS_ORIGINS = [
 ]
 ```
 alertad run --host 0.0.0.0 --port 8080
+ wget https://github.com/alerta/alerta-webui/releases/latest/download/alerta-webui.tar.gz
+tar zxvf alerta-webui.tar.gz
+cd dist
+python3 -m http.server 8000
 /root/dist/config.json
 ```
 {"endpoint": "http://192.168.28.54:8080"}
