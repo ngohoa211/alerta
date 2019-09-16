@@ -1,3 +1,61 @@
+/root/stack.yml
+```
+# Use root/example as user/password credentials
+version: '3.1'
+
+services:
+
+  mongo:
+    image: mongo
+    restart: always
+    container_name: mongo
+    network_mode: "host"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+
+  mongo-express:
+    container_name: mongo-express
+    image: mongo-express
+    restart: always
+    network_mode: "host"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+      ME_CONFIG_MONGODB_SERVER: 127.0.1.1
+      ME_CONFIG_MONGODB_PORT: 27017
+```
+
+
+file /etc/alertad.conf
+```
+DEBUG = True
+SECRET_KEY = 'changeme'
+BASE_URL = '/api'
+USE_PROXYFIX = False
+LOG_HANDLERS = ['console', 'file']
+LOG_FILE = '/var/log/alertad.log'
+LOG_MAX_BYTES = 5*1024*1024  # 5 MB
+LOG_BACKUP_COUNT = 2
+LOG_FORMAT = 'verbose'
+DATABASE_URL = 'mongodb://root:example@127.0.1.1:27017/?replicaSet=test&connectTimeoutMS=300000'
+DATABASE_NAME = 'monitoring'
+DATABASE_RAISE_ON_ERROR = False  # creating tables & indexes manually
+CORS_ORIGINS = [
+    'http://localhost',
+    'http://localhost:8000',
+    'http://192.168.28.54:8000',
+    r'https?://\w*\.?local\.alerta\.io:?\d*/?.*'  # => http(s)://*.local.alerta.io:<port>
+]
+```
+alertad run --host 0.0.0.0 --port 8080
+/root/dist/config.json
+```
+{"endpoint": "http://192.168.28.54:8080"}
+```
+
+
+
 Alerta Release 7.0
 ==================
 
