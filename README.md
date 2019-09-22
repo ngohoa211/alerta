@@ -107,7 +107,8 @@ To install MongoDB on CentOS/RHEL run:
 
 To install the Alerta server and client run:
 
-    $ pip install alerta-server alerta
+    $ apt-get install libpq-dev python-dev python3-dev
+    $ pip3 install alerta-server alerta
     $ alertad run
 
 To install the web console run:
