@@ -116,6 +116,9 @@ class Database(Base):
     def set_alert(self, id, severity, status, tags, attributes, timeout, previous_severity, update_time, history=None):
         raise NotImplementedError
 
+    def set_alert_customer(self, id, customer,tags, history=None):
+        raise NotImplementedError
+
     def get_alert(self, id, customers=None):
         raise NotImplementedError
 

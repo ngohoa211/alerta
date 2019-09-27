@@ -600,6 +600,27 @@ class Alert:
             history=history)
         )
 
+    def from_customer(self, customer: str) -> 'Alert':
+        now = datetime.utcnow()
+
+        history = [History(
+            id=self.id,
+            event=self.event,
+            severity=self.severity,
+            status=self.status,
+            value=self.value,
+            text=self.text,
+            change_type='customer',
+            update_time=now,
+            user=g.login
+        )]
+        return Alert.from_db(db.set_alert_customer(
+            id=self.id,
+            customer=customer,
+            tags=self.tags,
+            history=history)
+        )
+
     def from_action(self, action: str, text: str = '', timeout: int = None) -> 'Alert':
         now = datetime.utcnow()
 

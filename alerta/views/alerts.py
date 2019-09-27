@@ -88,7 +88,6 @@ def get_alert(alert_id):
     else:
         raise ApiError('not found', 404)
 
-
 # set status
 @api.route('/alert/<alert_id>/status', methods=['OPTIONS', 'PUT'])
 @cross_origin()
@@ -126,6 +125,43 @@ def set_status(alert_id):
         return jsonify(status='ok')
     else:
         raise ApiError('failed to set status', 500)
+
+
+# set customer
+@api.route('/alert/<alert_id>/customer', methods=['OPTIONS', 'PUT'])
+@cross_origin()
+@permission(Scope.write_alerts)
+@timer(status_timer)
+@jsonp
+def set_customer(alert_id):
+    customer = request.json.get('customer', None)
+    list_customers = g.get('customers', None)
+    found = False
+    for c  in list_customers:
+        if c == customer:
+            found = True
+    if found == False:
+        raise ApiError('not found customer ', 404)
+
+    alert = Alert.find_by_id(alert_id, list_customers)
+    if not alert:
+        raise ApiError('not found alert', 404)
+    try:
+        alert = alert.from_customer(customer)
+    except RejectException as e:
+        write_audit_trail.send(current_app._get_current_object(), event='alert-customer-change-rejected', message=alert.text,
+                               user=g.login, customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert',
+                               request=request)
+        raise ApiError(str(e), 400)
+    except Exception as e:
+        raise ApiError(str(e), 500)
+
+    write_audit_trail.send(current_app._get_current_object(), event='alert-customer-changed', message='change customer to'+customer, user=g.login,
+                           customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request)
+    if alert:
+        return jsonify(status='ok')
+    else:
+        raise ApiError('failed to set customer', 500)
 
 
 # action alert

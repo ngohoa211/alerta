@@ -11,6 +11,7 @@ from alerta.models.enums import Scope
 
 from .utils import Query
 
+
 # See https://github.com/MongoEngine/flask-mongoengine/blob/master/flask_mongoengine/__init__.py
 # See https://github.com/dcrosta/flask-pymongo/blob/master/flask_pymongo/__init__.py
 
@@ -335,6 +336,26 @@ class Backend(Database):
             }
         }
 
+        return self.get_db().alerts.find_one_and_update(
+            query,
+            update=update,
+            return_document=ReturnDocument.AFTER
+        )
+
+    def set_alert_customer(self, id, customer, tags, history=None):
+        query = {'_id': {'$regex': '^' + id}}
+        update = {
+            '$set': {
+                'customer': customer
+            },
+            '$addToSet': {'tags': {'$each': tags}},
+            '$push': {
+                'history': {
+                    '$each': [h.serialize for h in history],
+                    '$slice': -abs(current_app.config['HISTORY_LIMIT'])
+                }
+            }
+        }
         return self.get_db().alerts.find_one_and_update(
             query,
             update=update,
@@ -736,11 +757,11 @@ class Backend(Database):
                 {'$match': query.where},
                 {'$project': {'environment': 1, group_by: 1}},
                 {'$group':
-                 {
-                     '_id': {'environment': '$environment', group_by: '$' + group_by},
-                     'count': {'$sum': 1}
-                 }
-                 },
+                    {
+                        '_id': {'environment': '$environment', group_by: '$' + group_by},
+                        'count': {'$sum': 1}
+                    }
+                },
                 {'$limit': topn}
             ]
 
@@ -773,11 +794,11 @@ class Backend(Database):
                 {'$match': query.where},
                 {'$project': {'environment': 1, 'service': 1, group_by: 1}},
                 {'$group':
-                 {
-                     '_id': {'environment': '$environment', 'service': '$service', group_by: '$' + group_by},
-                     'count': {'$sum': 1}
-                 }
-                 },
+                    {
+                        '_id': {'environment': '$environment', 'service': '$service', group_by: '$' + group_by},
+                        'count': {'$sum': 1}
+                    }
+                },
                 {'$limit': topn}
             ]
 
@@ -1581,9 +1602,10 @@ class Backend(Database):
             {'$project': {
                 'event': 1, 'status': 1, 'lastReceiveId': 1, 'timeout': 1,
                 'expireTime': {'$add': ['$lastReceiveTime', {'$multiply': ['$timeout', 1000]}]}}
-             },
-            {'$match': {'status': {'$nin': ['expired', 'shelved']}, 'expireTime': {'$lt': datetime.utcnow()}, 'timeout': {
-                '$ne': 0}}}
+            },
+            {'$match': {'status': {'$nin': ['expired', 'shelved']}, 'expireTime': {'$lt': datetime.utcnow()},
+                        'timeout': {
+                            '$ne': 0}}}
         ]
         expired = [(r['_id'], r['event'], r['lastReceiveId']) for r in self.get_db().alerts.aggregate(pipeline)]
 
