@@ -1,6 +1,5 @@
-
 from datetime import datetime
-
+import logging
 from flask import current_app, g, jsonify, request
 from flask_cors import cross_origin
 
@@ -19,6 +18,8 @@ from alerta.utils.paging import Page
 from alerta.utils.response import jsonp
 
 from . import api
+
+LOG = logging.getLogger('alerta.plugins')
 
 receive_timer = Timer('alerts', 'received', 'Received alerts', 'Total time and number of received alerts')
 gets_timer = Timer('alerts', 'queries', 'Alert queries', 'Total time and number of alert queries')
@@ -46,7 +47,8 @@ def receive():
 
     def audit_trail_alert(event: str):
         write_audit_trail.send(current_app._get_current_object(), event=event, message=alert.text, user=g.login,
-                               customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request)
+                               customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert',
+                               request=request)
 
     try:
         alert = process_alert(alert)
@@ -87,6 +89,7 @@ def get_alert(alert_id):
         return jsonify(status='ok', total=1, alert=alert.serialize)
     else:
         raise ApiError('not found', 404)
+
 
 # set status
 @api.route('/alert/<alert_id>/status', methods=['OPTIONS', 'PUT'])
@@ -135,11 +138,9 @@ def set_status(alert_id):
 @jsonp
 def set_customer(alert_id):
     customer = request.json.get('customer', None)
-    list_customers = g.get('customers', None)
+    list_customers = g.get('customers', [])
     found = False
-    for c  in list_customers:
-        if c == customer:
-            found = True
+    LOG.info(list_customers)
     if found == False:
         raise ApiError('not found customer ', 404)
 
@@ -149,14 +150,16 @@ def set_customer(alert_id):
     try:
         alert = alert.from_customer(customer)
     except RejectException as e:
-        write_audit_trail.send(current_app._get_current_object(), event='alert-customer-change-rejected', message=alert.text,
+        write_audit_trail.send(current_app._get_current_object(), event='alert-customer-change-rejected',
+                               message=alert.text,
                                user=g.login, customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert',
                                request=request)
         raise ApiError(str(e), 400)
     except Exception as e:
         raise ApiError(str(e), 500)
 
-    write_audit_trail.send(current_app._get_current_object(), event='alert-customer-changed', message='change customer to'+customer, user=g.login,
+    write_audit_trail.send(current_app._get_current_object(), event='alert-customer-changed',
+                           message='change customer to' + customer, user=g.login,
                            customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request)
     if alert:
         return jsonify(status='ok')
@@ -278,7 +281,8 @@ def update_attributes(alert_id):
     if not alert:
         raise ApiError('not found', 404)
 
-    write_audit_trail.send(current_app._get_current_object(), event='alert-attributes-updated', message='', user=g.login,
+    write_audit_trail.send(current_app._get_current_object(), event='alert-attributes-updated', message='',
+                           user=g.login,
                            customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request)
 
     if alert.update_attributes(attributes):
