@@ -1,3 +1,12 @@
+```
+curl -XPUT http://localhost:5000/alert/d78a0723-611a-4745-829e-010182588cf0/customer \
+-H 'Authorization: Key 68CiQ9BlXUzTUEsmxnZ7g86hbxPb9gtZpkwUUEZ5' \
+-H 'Content-type: application/json' \
+-d '{
+      "customer": "vna"
+    }'
+
+```
 /root/stack.yml
 ```
 # Use root/example as user/password credentials
