@@ -134,20 +134,30 @@ def set_status(alert_id):
 @timer(status_timer)
 @jsonp
 def set_customer(alert_id):
-    customer = request.json.get('customer', None)
-    list_customers = g.get('customers', None)
+    want_customer = request.json.get('customer', None)
+    query = qb.from_params(MultiDict([]), customers=g.customers)
+    query_data = [
+        c for c in Customer.find_all(query)
+        if Scope.admin in g.scopes or Scope.admin_customers in g.scopes or c.customer in g.customers
+    ]
+    if query_data:
+        list_customers = [q.serialize for q in query_data]
+    else:
+        raise ApiError('not found any customer ', 404)
+    #LOG.info(list_customers)
     found = False
     for c  in list_customers:
-        if c == customer:
+        if want_customer == c['customer']:
             found = True
+
     if found == False:
         raise ApiError('not found customer ', 404)
 
-    alert = Alert.find_by_id(alert_id, list_customers)
+    alert = Alert.find_by_id(alert_id, g.get('customers', None))
     if not alert:
         raise ApiError('not found alert', 404)
     try:
-        alert = alert.from_customer(customer)
+        alert = alert.from_customer(want_customer)
     except RejectException as e:
         write_audit_trail.send(current_app._get_current_object(), event='alert-customer-change-rejected', message=alert.text,
                                user=g.login, customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert',
@@ -156,13 +166,12 @@ def set_customer(alert_id):
     except Exception as e:
         raise ApiError(str(e), 500)
 
-    write_audit_trail.send(current_app._get_current_object(), event='alert-customer-changed', message='change customer to'+customer, user=g.login,
+    write_audit_trail.send(current_app._get_current_object(), event='alert-customer-changed', message='change customer to'+want_customer, user=g.login,
                            customers=g.customers, scopes=g.scopes, resource_id=alert.id, type='alert', request=request)
     if alert:
         return jsonify(status='ok')
     else:
         raise ApiError('failed to set customer', 500)
-
 
 # action alert
 @api.route('/alert/<alert_id>/action', methods=['OPTIONS', 'PUT'])
