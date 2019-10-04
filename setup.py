@@ -77,6 +77,7 @@ setuptools.setup(
             'pagerduty = alerta.webhooks.pagerduty:PagerDutyWebhook',
             'pingdom = alerta.webhooks.pingdom:PingdomWebhook',
             'prometheus = alerta.webhooks.prometheus:PrometheusWebhook',
+            'alertmanager = alerta.webhooks.alertmanager:AlertmanagerWebhook',
             'riemann = alerta.webhooks.riemann:RiemannWebhook',
             'serverdensity = alerta.webhooks.serverdensity:ServerDensityWebhook',
             'slack = alerta.webhooks.slack:SlackWebhook',

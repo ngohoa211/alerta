@@ -1,0 +1,58 @@
+global:
+  smtp_from: hoanq13@viettel.com.vn
+  smtp_smarthost: smtp.viettel.com.vn:465
+  smtp_auth_username: hoanq13@viettel.com.vn
+  smtp_auth_password: 0985amenA#
+  smtp_require_tls: true
+route:
+  receiver: default-receiver
+  group_by: [origin, service]
+  group_interval: 30s
+  group_wait: 10s
+  routes:
+    - match:
+        service: deadman_check
+      receiver: urgent
+      continue: true
+
+receivers:
+- name: 'urgent'
+  email_configs:
+  - to: 'hoanq13@viettel.com.vn'
+    text: >
+      {{ .Alerts | len }} alerts:
+
+      {{ range .Alerts }}
+      {{ .Annotations.serverity }}
+      {{ .Labels.instance }}
+      {{ .Annotations.value }}
+      {{ end }}
+
+    require_tls: false
+  webhook_configs:
+  - url: 'http://192.168.28.54:8000/webhooks/alertmanager'
+    send_resolved: true
+    http_config:
+      basic_auth:
+        username: admin
+        password: 123qweA@ 
+  slack_configs:
+  - api_url: 'https://hooks.slack.com/services/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'
+    channel: '#monitor'
+    send_resolved: true
+    http_config:
+      proxy_url: 'http://192.168.5.8:3128'
+    title: 'Alerts in {{ .GroupLabels.origin }}, {{ .GroupLabels.service }} !'
+    text: >
+      {{ .Alerts | len }} alerts:
+
+      {{ range .Alerts }}
+      {{ .Annotations.serverity }}
+      {{ .Labels.instance }}
+      {{ .Annotations.value }}
+      {{ end }}
+
+- name: 'default-receiver'
+  webhook_configs:
+  - url: 'http://localhost:1234/log'
+    send_resolved: true
