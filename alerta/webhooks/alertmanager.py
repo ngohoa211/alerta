@@ -1,7 +1,6 @@
-
 import datetime
 from typing import Any, Dict
-
+import logging
 import pytz
 from dateutil.parser import parse as parse_date
 
@@ -14,9 +13,10 @@ from . import WebhookBase
 JSON = Dict[str, Any]
 dt = datetime.datetime
 
+LOG = logging.getLogger('alerta.webhook')
+
 
 def parse_alertmanager(alert: JSON, external_url: str, related_alert=None) -> Alert:
-
     status = alert.get('status', 'firing')
 
     # Allow labels and annotations to use python string formats that refer to
@@ -60,11 +60,13 @@ def parse_alertmanager(alert: JSON, external_url: str, related_alert=None) -> Al
 
     customer = labels.pop('customer', None)
     correlate = labels.pop('correlate').split(',') if 'correlate' in labels else None
+
     service = labels.pop('service', '').split(',')
+    #service = labels.pop('service', '')
     group = labels.pop('group', None) or labels.pop('job', 'Alertmanager')
     origin = labels.pop('origin', None)
     tags = ['{}={}'.format(k, v) for k, v in labels.items()]  # any labels left over are used for tags
-    tags.append(related_alert)
+    #tags.append(related_alert)
     try:
         timeout = int(labels.pop('timeout', 0)) or None
     except ValueError:
@@ -79,11 +81,26 @@ def parse_alertmanager(alert: JSON, external_url: str, related_alert=None) -> Al
         text = text
     if external_url:
         annotations['externalUrl'] = external_url  # needed as raw URL for bi-directional integration
-    if 'generatorURL' in alert:
-        annotations['moreInfo'] = '<a href="{}" target="_blank">Prometheus Graph</a>'.format(alert['generatorURL'])
-    attributes = annotations  # any annotations left over are used for attributes
+    if 'moreInfo' in alert:
+        annotations['moreInfo'] = alert['moreInfo']
+    #attributes = annotations  # any annotations left over are used for attributes
+    attributes = {"related_alert":related_alert}
 
-    return Alert(
+    # logging.error(resource)
+    # logging.error(event)
+    # logging.error(environment)
+    # logging.error(customer)
+    # logging.error(correlate)
+    # logging.error(service)
+    # logging.error(group)
+    # logging.error(value)
+    # logging.error(text)
+    # logging.error(attributes)
+    # logging.error(origin)
+    # logging.error(timeout)
+    # logging.error(tags)
+    #logging.error(tags)
+    new_alert = Alert(
         resource=resource,
         event=event,
         environment=environment,
@@ -97,13 +114,17 @@ def parse_alertmanager(alert: JSON, external_url: str, related_alert=None) -> Al
         attributes=attributes,
         origin=origin,
         event_type='AlertmanagerAlert',
-        create_time=create_time.astimezone(tz=pytz.UTC).replace(tzinfo=None),
+        #create_time=create_time.astimezone(tz=pytz.UTC).replace(tzinfo=None),
         timeout=timeout,
         raw_data=alert,
         tags=tags
     )
+    #logging.error(new_alert)
+    return new_alert
 
 
+# INPUT: {"receiver":"anht","status":"firing","alerts":[{"status":"firing","labels":{"environment":"Production","event":"no_metric_system-host=compute01","group":"OS","instance":"{\"host\": \"compute01\"}","origin":"VNA","service":"deadman_check"},"annotations":{"severity":"critical","summary":"lose metric system","value":"['time', 'emitted']:[['2019-10-07T11:26:00Z', 0]]"},"startsAt":"2019-10-07T11:26:00.571099875Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"","fingerprint":"b939eb01b8bbb940"},{"status":"firing","labels":{"environment":"Production","event":"no_metric_system-host=compute02","group":"OS","instance":"{\"host\": \"compute02\"}","origin":"VNA","service":"deadman_check"},"annotations":{"severity":"critical","summary":"lose metric system","value":"['time', 'emitted']:[['2019-10-07T11:26:00Z', 0]]"},"startsAt":"2019-10-07T11:26:00.255422902Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"","fingerprint":"988537c811e071e0"},{"status":"firing","labels":{"environment":"Production","event":"no_metric_system-host=controller","group":"OS","instance":"{\"host\": \"controller\"}","origin":"VNA","service":"deadman_check"},"annotations":{"severity":"critical","summary":"lose metric system","value":"['time', 'emitted']:[['2019-10-07T11:26:00Z', 0]]"},"startsAt":"2019-10-07T11:26:00.869522957Z","endsAt":"0001-01-01T00:00:00Z","generatorURL":"","fingerprint":"c2c7c41655f0160a"}],"groupLabels":{"group":"OS","origin":"VNA","service":"deadman_check"},"commonLabels":{"environment":"Production","group":"OS","origin":"VNA","service":"deadman_check"},"commonAnnotations":{"severity":"critical","summary":"lose metric system","value":"['time', 'emitted']:[['2019-10-07T11:26:00Z', 0]]"},"externalURL":"http://monitor:9093","version":"4","groupKey":"{}/{}:{group=\"OS\", origin=\"VNA\", service=\"deadman_check\"}"}
+#
 class AlertmanagerWebhook(WebhookBase):
     """
     Prometheus Alertmanager webhook receiver
@@ -111,14 +132,21 @@ class AlertmanagerWebhook(WebhookBase):
     """
 
     def incoming(self, query_string, payload):
-        # tong hop event chuyen no thanh correrl
-        if len(payload['alerts']>0):
-            related_alert =[]
-            for alert in payload['alerts']:
-                related_alert.append({alert['labels']['resource']+" "+alert['labels']['event']})
+        # logging.info("get alert: %s", payload['alerts'])
+        # transform this alert group to related each other
+        related_alert = []
+        for alert in payload['alerts']:
+            related_alert.append(alert['labels']['event'])
 
+        #logging.info(related_alert)
         if payload and 'alerts' in payload:
             external_url = payload.get('externalURL')
-            return [parse_alertmanager(alert, external_url, related_alert ) for alert in payload['alerts']]
+            try:
+                return [parse_alertmanager(alert, external_url, related_alert) for alert in payload['alerts']]
+            except Exception as e:
+                logging.error(e)
+                raise ApiError('Error : '+e, 400)
         else:
-            raise ApiError('no alerts in Prometheus notification payload', 400)
+            raise ApiError('no alerts in Alertmanager notification payload', 400)
+
+
