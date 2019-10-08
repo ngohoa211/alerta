@@ -11,7 +11,8 @@ services:
       - /etc/localtime:/etc/localtime
     environment:
       - DEBUG=1  # remove this line to turn DEBUG off
-      - DATABASE_URL=mongodb://root:123qewA@@127.0.1.1:27017/?connectTimeoutMS=300000
+      - DATABASE_URL=mongodb://root:example@db:27017/?connectTimeoutMS=300000
+      - DATABASE_NAME=monitoring
       - AUTH_REQUIRED=True
       - ADMIN_USERS=admin@alerta.io,devops@alerta.io #default password: alerta
       - PLUGINS=reject,blackout
@@ -24,21 +25,25 @@ services:
       - ./db-data:/data/db
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: 123qweA@
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_INITDB_DATABASE: monitoring
   db_dashboard:
     image: mongo-express
     restart: always
     ports:
       - 8081:8081
+    depends_on:
+      - db
     environment:
+      ME_CONFIG_MONGODB_SERVER: db
       ME_CONFIG_MONGODB_ADMINUSERNAME: root
-      ME_CONFIG_MONGODB_ADMINPASSWORD: 123qweA@
-  alertmanager:
-    image: prom/alertmanager
-    restart: unless-stopped
-    ports:
-      - 9093:9093
-    volumes:
-      - /etc/localtime:/etc/localtime
-      - .alertmanager-conf:/etc/alertmanager 
-      - .alertmanager-storage:/alertmanager    
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+#  alertmanager:
+#    image: prom/alertmanager
+#    restart: unless-stopped
+#    ports:
+#      - 9093:9093
+#    volumes:
+#      - /etc/localtime:/etc/localtime
+#      - .alertmanager-conf:/etc/alertmanager 
+#      - .alertmanager-storage:/alertmanager    
