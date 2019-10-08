@@ -111,8 +111,3 @@ venv.bak/
 *.BAK
 *.log*
 .vscode
-# docker-composer run
-pg-data
-db-data
-alertmanager-storage
-alertmanager-conf
